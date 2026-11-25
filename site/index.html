@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSS Railway</title>
+<meta name="description" content="Open-source, self-hosted deploy platform. One command on your VPS, then deploy repos, images and databases from a web dashboard.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e8a62'/%3E%3Cpath d='M9 22h14M9 16h14M9 10h14' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #fff; --sunken: #efefec; --border: #e3e3df;
+  --text: #1b1b19; --muted: #5f5f59; --faint: #8f8f88;
+  --accent: #0e8a62; --accent-text: #fff; --accent-soft: #e2f3ec; --dot: #d9d9d4;
+  --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 8px 32px rgb(0 0 0 / .06);
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  --r1: 6px; --r2: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0f0e; --surface: #181817; --sunken: #0b0b0a; --border: #2a2a28;
+    --text: #ededea; --muted: #a8a8a2; --faint: #74746e;
+    --accent: #34c48f; --accent-text: #08130e; --accent-soft: #12291f; --dot: #262624;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f0f0e; --surface: #181817; --sunken: #0b0b0a; --border: #2a2a28;
+  --text: #ededea; --muted: #a8a8a2; --faint: #74746e;
+  --accent: #34c48f; --accent-text: #08130e; --accent-soft: #12291f; --dot: #262624;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 650; }
+h1 { font-size: clamp(40px, 6vw, 72px); letter-spacing: -0.035em; }
+h2 { font-size: clamp(28px, 3.4vw, 40px); }
+h3 { font-size: 20px; }
+p { margin: 0; }
+code, pre { font-family: var(--mono); font-size: 14px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.muted { color: var(--muted); }
+
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+nav .wrap { height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 650; text-decoration: none; }
+.links { display: flex; gap: 24px; font-size: 14px; }
+.links a { text-decoration: none; color: var(--muted); }
+.links a:hover { color: var(--text); }
+.button { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: var(--r1); border: 1px solid var(--border); background: var(--surface); text-decoration: none; font-weight: 550; font-size: 15px; cursor: pointer; color: var(--text); font-family: inherit; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.button:hover { filter: brightness(1.05); }
+
+.hero { padding: 96px 0 64px; text-align: left; }
+.hero h1 { max-width: 14ch; }
+.hero .lead { margin-top: 24px; font-size: 20px; max-width: 46ch; color: var(--muted); }
+.cmd { margin-top: 32px; display: flex; align-items: center; gap: 8px; max-width: 760px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 8px 8px 8px 16px; box-shadow: var(--shadow); }
+.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.cmd code::before { content: "$ "; color: var(--faint); }
+.alt { margin-top: 12px; font-size: 14px; color: var(--muted); }
+.alt code { font-size: 13px; background: var(--sunken); padding: 2px 6px; border-radius: 4px; }
+.actions { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Product picture: the canvas, drawn in HTML */
+.shot { margin: 32px 0 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.shot-bar { height: 44px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 13px; font-weight: 600; }
+.shot-bar span:last-child { background: var(--accent); color: var(--accent-text); border-radius: var(--r1); padding: 2px 10px; font-weight: 550; }
+.board { position: relative; height: 380px; background: var(--bg) radial-gradient(var(--dot) 1.2px, transparent 1.2px) 0 0 / 20px 20px; }
+.board svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.board path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.node { position: absolute; width: 23%; min-width: 150px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow); }
+.node b { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.node b::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.node span { display: block; color: var(--muted); margin-top: 8px; }
+.node small { color: var(--faint); font-size: 12px; }
+.node.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.panel { position: absolute; right: 12px; top: 12px; bottom: 12px; width: 34%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 12px; display: grid; align-content: start; gap: 10px; box-shadow: var(--shadow); }
+.panel .tabs { display: flex; gap: 12px; color: var(--faint); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.panel .tabs b { color: var(--text); font-weight: 550; }
+.panel pre { margin: 0; background: var(--sunken); border-radius: 6px; padding: 10px; font-size: 11px; line-height: 1.7; overflow: hidden; color: var(--muted); }
+.panel pre i { color: var(--accent); font-style: normal; }
+
+section { padding: 96px 0; }
+.section-head { max-width: 640px; display: grid; gap: 16px; margin-bottom: 48px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+.feature { grid-column: span 6; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 32px; display: grid; gap: 12px; align-content: start; }
+.feature .icon { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.feature code { font-size: 13px; background: var(--sunken); padding: 1px 6px; border-radius: 4px; }
+.steps { counter-reset: step; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.step { border-top: 2px solid var(--text); padding-top: 20px; display: grid; gap: 8px; }
+.step::before { counter-increment: step; content: "0" counter(step); font: 600 14px var(--mono); color: var(--accent); }
+.numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.number b { display: block; font-size: 40px; letter-spacing: -0.03em; font-weight: 650; }
+.number span { color: var(--muted); font-size: 15px; }
+
+.docs { display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
+.toc { position: sticky; top: 88px; display: grid; gap: 8px; font-size: 14px; }
+.toc a { color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--text); }
+.doc { display: grid; gap: 48px; max-width: 720px; }
+.doc article { display: grid; gap: 12px; }
+.doc ul, .doc ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); }
+.doc p { color: var(--muted); }
+.doc pre { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r1); padding: 14px 16px; overflow-x: auto; }
+.doc p code, .doc li code { font-size: 13px; background: var(--sunken); padding: 1px 6px; border-radius: 4px; color: var(--text); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+th { font-weight: 550; }
+td { color: var(--muted); }
+
+.cta { text-align: center; display: grid; gap: 24px; justify-items: center; }
+footer { border-top: 1px solid var(--border); padding: 32px 0; font-size: 14px; color: var(--muted); }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+.reveal { opacity: 0; transform: translateY(12px); transition: opacity 600ms ease-out, transform 600ms ease-out; }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+
+@media (max-width: 860px) {
+  .links { display: none; }
+  .hero { padding: 64px 0 32px; }
+  section { padding: 64px 0; }
+  .feature { grid-column: span 12; padding: 24px; }
+  .steps, .numbers { grid-template-columns: 1fr 1fr; }
+  .docs { grid-template-columns: 1fr; }
+  .toc { position: static; grid-template-columns: 1fr 1fr; }
+  .panel { display: none; }
+  .board { height: 300px; }
+}
+@media (max-width: 480px) {
+  .steps, .numbers { grid-template-columns: 1fr; }
+  .node { min-width: 0; width: 44%; padding: 10px; }
+  .node span { display: none; }
+  .board svg { display: none; }
+  .board { height: 220px; }
+  .node.n1 { left: 4% !important; top: 12% !important; }
+  .node.n4 { left: 52% !important; top: 12% !important; }
+  .node.n2 { left: 4% !important; top: 56% !important; }
+  .node.n3 { left: 52% !important; top: 56% !important; }
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 22h14M9 16h14M9 10h14" stroke="var(--accent-text)" stroke-width="3" stroke-linecap="round"/></svg>
+      OSS Railway
+    </a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#docs">Docs</a>
+    </div>
+    <a class="button" href="https://github.com/KumarRoushan9234/OSS-Railway">GitHub</a>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap hero">
+    <h1>Deploy anything to your own server.</h1>
+    <p class="lead">One command turns any VPS into a deploy platform. Push code, pick an image, add a database. HTTPS, logs, metrics and alerts come with it.</p>
+    <div class="cmd">
+      <code id="install">curl -fsSL https://raw.githubusercontent.com/KumarRoushan9234/OSS-Railway/main/install.sh | sh</code>
+      <button class="button primary" data-copy="install">Copy</button>
+    </div>
+    <p class="alt" style="color:var(--text)"><b>Work in progress.</b> I'm still building this: it's tested locally but not yet on many real servers. <a href="https://github.com/KumarRoushan9234/OSS-Railway/blob/main/docs/ROADMAP.md">What's tested</a></p>
+    <p class="alt">From your laptop instead: <code>npx oss-railway setup root@YOUR_SERVER_IP</code></p>
+
+    <div class="shot reveal" aria-label="The OSS Railway dashboard: services on a canvas, with a side panel showing variables">
+      <div class="shot-bar"><span>OSS Railway</span><span>+ New</span></div>
+      <div class="board">
+        <svg viewBox="0 0 1000 380" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M290 110 C 330 110, 330 250, 370 250" />
+          <path d="M290 270 C 320 270, 340 260, 370 255" />
+        </svg>
+        <div class="node n1" style="left:4%;top:16%"><b>pg</b><span>Postgres</span><small>running · 2h ago</small></div>
+        <div class="node n2" style="left:4%;top:58%"><b>cache</b><span>Redis</span><small>running · 2h ago</small></div>
+        <div class="node sel n3" style="left:37%;top:52%"><b>web</b><span>GitHub · you/shop</span><small>web.203-0-113-7.sslip.io</small></div>
+        <div class="node n4" style="left:37%;top:12%"><b>worker</b><span>Image · ghcr.io/you/worker</span><small>running · 5m ago</small></div>
+        <div class="panel">
+          <strong style="font-size:14px">web</strong>
+          <div class="tabs"><span>Deployments</span><span>Logs</span><b>Variables</b><span>Metrics</span></div>
+<pre>DATABASE_URL=<i>${{pg.DATABASE_URL}}</i>
+REDIS_URL=<i>${{cache.REDIS_URL}}</i>
+SESSION_SECRET=••••••••
+NODE_ENV=production</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Everything a small team needs to ship.</h2>
+        <p class="muted">No Dockerfile, no CI pipeline, no reverse-proxy config. The dashboard does it.</p>
+      </div>
+      <div class="grid">
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9"/></svg></div>
+          <h3>Push to deploy, no Dockerfile</h3>
+          <p class="muted">Connect GitHub once and pick a repo. Railpack detects Node, Python, Go, PHP, Ruby, Java, Rust, .NET and more, and builds it. Every push to your branch deploys again.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8c5 0 9-1.3 9-3s-4-3-9-3-9 1.3-9 3 4 3 9 3zM21 12c0 1.7-4 3-9 3s-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/></svg></div>
+          <h3>Databases you link by dragging</h3>
+          <p class="muted">Postgres, MySQL, Redis and MongoDB in one click, with daily backups. Drag a line from a database to an app and it gets <code>${{db.DATABASE_URL}}</code>.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <h3>HTTPS without touching DNS</h3>
+          <p class="muted">Caddy gets certificates automatically. Every app gets a free <code>name.your-ip.sslip.io</code> address on day one; add your own domain whenever you like.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+          <h3>Know when something breaks</h3>
+          <p class="muted">Live logs, CPU, memory, network and disk per service. Email, Slack or Discord alerts for crashes, out-of-memory kills, failed deploys and full disks, plus a daily report.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18v7H3zM3 13h18v7H3zM7 7.5h.01M7 16.5h.01"/></svg></div>
+          <h3>See everything on the server</h3>
+          <p class="muted">The Server view lists every listening port with the process and container behind it, every container (even ones you started by hand), volumes and disk use. Give each app a CPU and memory limit, or take the suggestion sized from its real usage.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <h3>Locked down, agent-ready</h3>
+          <p class="muted">Two-factor sign-in with any authenticator app, one-time recovery codes, and an emailed sign-in link if you lose your phone. API tokens and an MCP endpoint let Claude and other AI agents read logs, check status and deploy.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+          <h3>Desktop app for every server</h3>
+          <p class="muted">Add any number of servers, a VPS anywhere or a box at home behind a tunnel, and watch them from one window. Tokens stay in your system keychain, and log analysis runs on your own computer with Ollama.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"/></svg></div>
+          <h3>Logs you can search, explained</h3>
+          <p class="muted">Every service's logs are kept for 7 days and searchable across services. One click asks an AI model why a deploy failed: a local Ollama by default, so your logs stay yours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" style="background: var(--surface); border-block: 1px solid var(--border)">
+    <div class="wrap">
+      <div class="section-head reveal"><h2>From empty server to live app.</h2></div>
+      <div class="steps">
+        <div class="step reveal"><h3>Install</h3><p class="muted">Run one command on an Ubuntu, Debian or RHEL-family server. It installs Docker if needed, opens the firewall and starts the panel and Caddy.</p></div>
+        <div class="step reveal"><h3>Sign in</h3><p class="muted">Open the printed address, enter the one-time setup code and create your admin account.</p></div>
+        <div class="step reveal"><h3>Deploy</h3><p class="muted">Pick a GitHub repo, a Docker image or a database. A health-checked deploy goes live, and the old version keeps serving until the new one is ready.</p></div>
+      </div>
+      <div class="numbers reveal" style="margin-top:64px">
+        <div class="number"><b>1</b><span>command to install</span></div>
+        <div class="number"><b>~54 MB</b><span>RAM for panel and proxy at idle, in our tests</span></div>
+        <div class="number"><b>0</b><span>data sent anywhere but your server</span></div>
+        <div class="number"><b>Apache-2.0</b><span>open source</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="docs">
+    <div class="wrap docs">
+      <div class="toc">
+        <a href="#requirements">Requirements</a>
+        <a href="#install-doc">Install</a>
+        <a href="#first-deploy">First deploy</a>
+        <a href="#domains">Domains and HTTPS</a>
+        <a href="#databases">Databases</a>
+        <a href="#alerts">Alerts and reports</a>
+        <a href="#server-view">Server view and limits</a>
+        <a href="#two-factor">Two-factor sign-in</a>
+        <a href="#agents">AI agents (MCP)</a>
+        <a href="#logs-ai">Logs and AI analysis</a>
+        <a href="#remote">Remote access</a>
+        <a href="#desktop">Desktop app</a>
+        <a href="#updates">Updates and releases</a>
+        <a href="#local">Run it locally</a>
+        <a href="#security">Security</a>
+      </div>
+      <div class="doc">
+        <article id="requirements">
+          <h2>Requirements</h2>
+          <ul>
+            <li>A Linux server: Ubuntu, Debian, RHEL, CentOS, Fedora, Rocky or AlmaLinux, on x86-64 or ARM64</li>
+            <li>1 GB RAM minimum, 2 GB or more for building apps (the installer adds swap on small servers)</li>
+            <li>Ports 80 and 443 open to the internet, and root or sudo access</li>
+          </ul>
+        </article>
+        <article id="install-doc">
+          <h2>Install</h2>
+          <p>On the server:</p>
+          <pre><code>curl -fsSL https://raw.githubusercontent.com/KumarRoushan9234/OSS-Railway/main/install.sh | sh</code></pre>
+          <p>Or from your own computer, over SSH:</p>
+          <pre><code>npx oss-railway setup root@YOUR_SERVER_IP</code></pre>
+          <p>The installer prints a dashboard address like <code>https://203-0-113-7.sslip.io</code> and a one-time setup code. Open the address, enter the code and create your account.</p>
+        </article>
+        <article id="first-deploy">
+          <h2>First deploy</h2>
+          <ol>
+            <li>Press <b>New</b> (or <code>N</code>). Type to search: a repo name, an image like <code>nginx:alpine</code>, or a database.</li>
+            <li>For GitHub, choose <b>Connect GitHub</b>. This creates a private GitHub App on your account that only sees the repos you pick.</li>
+            <li>Add variables if your app needs them, then <b>Save and deploy</b>. Build logs stream live.</li>
+            <li>When it's live, the card turns green and shows its address.</li>
+          </ol>
+          <p>Without a Dockerfile, Railpack builds the app. If the repo has a Dockerfile, that is used instead. Apps should listen on the <code>PORT</code> variable (3000 unless you set another port).</p>
+        </article>
+        <article id="domains">
+          <h2>Domains and HTTPS</h2>
+          <p>Every app starts with a free <code>name.IP.sslip.io</code> address. To use your own domain, point DNS at the server, then set it in the service's Settings tab:</p>
+          <pre><code>A    app.example.com   →  YOUR_SERVER_IP
+A    *.example.com     →  YOUR_SERVER_IP   (optional, for name.example.com on every app)</code></pre>
+          <p>Caddy requests and renews certificates on its own.</p>
+        </article>
+        <article id="databases">
+          <h2>Databases</h2>
+          <table>
+            <tr><th>Database</th><th>Variable apps get</th><th>Daily backup</th></tr>
+            <tr><td>Postgres 17</td><td><code>DATABASE_URL</code></td><td>Yes, keeps 7</td></tr>
+            <tr><td>MySQL 8.4</td><td><code>DATABASE_URL</code></td><td>Yes, keeps 7</td></tr>
+            <tr><td>Redis 7</td><td><code>REDIS_URL</code></td><td>Not yet</td></tr>
+            <tr><td>MongoDB 8</td><td><code>MONGO_URL</code></td><td>Not yet</td></tr>
+          </table>
+          <p>Drag from a database's edge handle onto an app, or add <code>${{name.DATABASE_URL}}</code> to the app's variables yourself. Passwords are generated and stored encrypted.</p>
+        </article>
+        <article id="alerts">
+          <h2>Alerts and reports</h2>
+          <p>In Settings, add an SMTP server (any provider: Resend, Postmark, SES, Gmail) and/or a Slack or Discord webhook. You'll hear about crashes, crash loops, out-of-memory kills, failed deploys, failed backups, disk above 85% and memory above 90%. The same alert is sent at most once every 15 minutes. A daily summary goes out at 09:00 server time.</p>
+        </article>
+        <article id="server-view">
+          <h2>Server view and limits</h2>
+          <p>Open <b>Server</b> in the top bar to see every listening port (with its process and container), every container on the machine (deployed here, or <i>external</i>), volumes and disk use.</p>
+          <p>In a service's <b>Settings → Resources</b>, set a CPU limit (cores) and a memory limit (MB). Changes apply to the running container straight away. After a few minutes of data you get a suggestion: 1.5× the measured peak, with a warning when a service keeps hitting its limit. Docker can't cap disk per container, so disk use is shown and alerted on instead.</p>
+        </article>
+        <article id="two-factor">
+          <h2>Two-factor sign-in</h2>
+          <ol>
+            <li>Settings → <b>Two-factor sign-in</b> → <b>Set up authenticator app</b>. Scan the QR code with Google Authenticator, 1Password, Authy or any TOTP app.</li>
+            <li>Enter the 6-digit code to turn it on, then save the 10 recovery codes. Each works once.</li>
+            <li>Lost your phone? After your password, use a recovery code, or choose <b>Email me a sign-in link</b> (needs email set up). The link works once for 15 minutes and turns 2FA off so you can set it up on the new phone.</li>
+          </ol>
+          <p><b>Passkeys</b> (Settings → Passkeys) sign you in with Windows Hello, Touch ID, a phone or a security key, with no password or code. They need HTTPS and a domain name. Settings also has <b>change password</b>, <b>sign out everywhere else</b>, and an <b>Activity</b> log of every sign-in and change.</p>
+        </article>
+        <article id="agents">
+          <h2>AI agents (MCP)</h2>
+          <p>Create a token in Settings → <b>API tokens and AI agents</b>. Read-only tokens can list services, read logs and see the server; full tokens can also deploy and restart. Then add the server to Claude Code:</p>
+          <pre><code>claude mcp add --transport http oss-railway https://YOUR_PANEL/api/mcp --header "Authorization: Bearer ossr_…"</code></pre>
+          <p>Tools: <code>list_services</code>, <code>service_status</code>, <code>service_logs</code>, <code>deployment_logs</code>, <code>server_overview</code>, <code>deploy</code>, <code>restart</code>. The same token works on the REST API with <code>Authorization: Bearer</code>. Tokens can never change settings, tokens or 2FA.</p>
+        </article>
+        <article id="logs-ai">
+          <h2>Logs and AI analysis</h2>
+          <p>Each service's Logs tab has <b>Live</b> and <b>Search</b>. Search covers the last 7 days; every word you type must appear. Lines are kept in SQLite on your server.</p>
+          <p>Settings → <b>AI analysis</b> takes any OpenAI-compatible endpoint. With Ollama on the server or your computer (<code>http://host.docker.internal:11434/v1</code>, model e.g. <code>qwen2.5:7b</code>), nothing leaves your machines. Then use <b>Explain with AI</b> on a failed deploy or in Logs.</p>
+        </article>
+        <article id="remote">
+          <h2>Remote access</h2>
+          <p>No public IP, or don't want to open ports? Settings → <b>Remote access</b>:</p>
+          <ul>
+            <li><b>Get a temporary address</b>: a random <code>https://….trycloudflare.com</code> link, no account needed. Good for testing; it changes on restart.</li>
+            <li><b>Use my Cloudflare tunnel</b>: create a tunnel in Cloudflare Zero Trust, point a hostname at <code>http://ossr-caddy:80</code>, paste the token. A fixed address on your own domain.</li>
+          </ul>
+          <p>Anyone can open a tunnel address, so turn on 2FA or a passkey first. GitHub push-to-deploy works through a tunnel.</p>
+        </article>
+        <article id="desktop">
+          <h2>Desktop app</h2>
+          <p>Download the installer for Windows, macOS or Linux from the <a href="https://github.com/KumarRoushan9234/OSS-Railway/releases">latest release</a>. Add a server with its dashboard address and an API token (read-only to watch, full access to deploy and restart). The app shows each server's CPU, memory, disk, services, alerts and ports; reads and searches logs; deploys and restarts; and opens the full dashboard in its own window.</p>
+          <p><b>Analyze</b> sends a service's recent logs to Ollama on your computer (set the model under AI settings), so a remote server's logs are analysed at home.</p>
+        </article>
+        <article id="updates">
+          <h2>Updates and releases</h2>
+          <p>Every change merged to <code>main</code> is released automatically: a new version tag, release notes, Linux binaries and a panel image at <code>ghcr.io/kumarroushan9234/oss-railway</code>. To update a server, run the install command again. Your data stays in the <code>ossr-data</code> volume.</p>
+        </article>
+        <article id="local">
+          <h2>Run it locally</h2>
+          <p>With Docker Desktop running:</p>
+          <pre><code>docker build -t oss-railway:dev .
+docker network create ossr
+docker run -d --name ossr-panel --network ossr \
+  -v /var/run/docker.sock:/var/run/docker.sock -v ossr-data:/data \
+  -v /proc:/host/proc:ro -v /:/host/root:ro --cap-add SYS_PTRACE --add-host host.docker.internal:host-gateway oss-railway:dev
+docker exec ossr-panel cat /data/setup-code</code></pre>
+          <p>Open <code>http://localhost</code>. To work on the dashboard with instant reload, run <code>npm run dev</code> in <code>web/</code> and open <code>http://localhost:5176</code>.</p>
+        </article>
+        <article id="security">
+          <h2>Security</h2>
+          <ul>
+            <li>The panel controls Docker on the server, which is the same as root access. Use a strong password and keep the dashboard on HTTPS.</li>
+            <li>Variables, SMTP passwords and GitHub keys are encrypted at rest. Secrets are never shown again after saving.</li>
+            <li>Sign-in is rate-limited, sessions are HTTP-only cookies, and every change needs a CSRF header.</li>
+            <li>Found a problem? Open a private security advisory on GitHub rather than a public issue.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap cta reveal">
+      <h2>Your server, your apps.</h2>
+      <div class="actions">
+        <button class="button primary" data-copy="install">Copy install command</button>
+        <a class="button" href="https://github.com/KumarRoushan9234/OSS-Railway">Star on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>OSS Railway · Apache-2.0</span>
+    <span><a href="https://github.com/KumarRoushan9234/OSS-Railway/releases">Releases</a> · <a href="https://github.com/KumarRoushan9234/OSS-Railway/issues">Issues</a></span>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('[data-copy]').forEach((b) => {
+  b.addEventListener('click', async () => {
+    const text = document.getElementById(b.dataset.copy).textContent
+    const label = b.textContent
+    try { await navigator.clipboard.writeText(text); b.textContent = 'Copied' } catch { b.textContent = 'Select and copy' }
+    setTimeout(() => (b.textContent = label), 1500)
+  })
+})
+const io = 'IntersectionObserver' in window && new IntersectionObserver((entries) => {
+  entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } })
+}, { rootMargin: '0px 0px -10% 0px' })
+document.querySelectorAll('.reveal').forEach((el) => (io ? io.observe(el) : el.classList.add('in')))
+</script>
+</body>
+</html>

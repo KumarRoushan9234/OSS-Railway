@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OSS Railway</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 22h14M9 16h14M9 10h14" stroke="var(--accent-text)" stroke-width="3" stroke-linecap="round"/></svg>
+      OSS Railway
+    </div>
+    <nav id="servers" aria-label="Servers"></nav>
+    <button id="add" class="ghost">+ Add server</button>
+    <button id="settings" class="ghost">AI settings</button>
+  </aside>
+  <main id="main"></main>
+
+  <dialog id="add-dialog">
+    <form method="dialog" id="add-form" class="stack">
+      <h2>Add a server</h2>
+      <label>Dashboard address <input name="url" placeholder="https://panel.example.com" required /></label>
+      <label>API token <input name="token" type="password" placeholder="ossr_…" autocomplete="off" required /></label>
+      <label>Name <input name="name" placeholder="Production" /></label>
+      <p class="hint">Create the token in the server's Settings → API tokens. Read-only is enough to watch; full access lets you deploy and restart. It's stored in your system keychain.</p>
+      <p class="error" id="add-error"></p>
+      <div class="row"><button class="primary" value="add">Add</button><button value="cancel" formnovalidate class="ghost">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" id="settings-form" class="stack">
+      <h2>AI on this computer</h2>
+      <label>Endpoint <input name="ai_url" placeholder="http://localhost:11434/v1" required /></label>
+      <label>Model <input name="ai_model" placeholder="qwen2.5:7b" required /></label>
+      <p class="hint">"Analyze" sends a service's recent logs to this model. With Ollama on this computer, logs from your servers never go to a cloud AI.</p>
+      <p class="error" id="settings-error"></p>
+      <div class="row"><button class="primary" value="save">Save</button><button value="cancel" formnovalidate class="ghost">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

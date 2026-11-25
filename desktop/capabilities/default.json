@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Only the app's own window may call its commands; dashboard windows that load a server's page get no access.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

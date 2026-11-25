@@ -1,0 +1,32 @@
+{
+  "name": "oss-railway",
+  "version": "0.1.0",
+  "description": "Install OSS Railway, a self-hosted PaaS, on any Linux server",
+  "license": "Apache-2.0",
+  "bin": {
+    "oss-railway": "bin/oss-railway.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "homepage": "https://kumarroushan9234.github.io/OSS-Railway/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KumarRoushan9234/OSS-Railway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KumarRoushan9234/OSS-Railway/issues"
+  },
+  "keywords": [
+    "paas",
+    "self-hosted",
+    "docker",
+    "caddy",
+    "deploy",
+    "railway",
+    "vps"
+  ]
+}
