@@ -8,8 +8,10 @@
 <meta property="og:title" content="OSS Railway: deploy anything to your own server">
 <meta property="og:description" content="One command on your VPS, then deploy repos, images and databases from a web dashboard.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#2a3bff">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a3bff'/%3E%3Cpath d='M9 22h14M9 16h14M9 10h14' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0f5b5c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f5b5c'/%3E%3Cpath d='M9 22h14M9 16h14M9 10h14' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,7 +26,7 @@
 <nav class="top" aria-label="Main">
   <div class="wrap">
     <a class="brand" href="./">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2a3bff"/><path d="M9 22h14M9 16h14M9 10h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0f5b5c"/><path d="M9 22h14M9 16h14M9 10h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
       OSS Railway
     </a>
     <div class="links" id="links">
@@ -34,13 +36,14 @@
       <a href="#ways">What you can run</a>
       <a href="#features">Features</a>
       <a href="docs.html">Docs</a>
+      <a class="gh" href="https://github.com/KumarRoushan9234/OSS-Railway">GitHub</a>
     </div>
     <button class="btn sm menu" aria-label="Menu" aria-expanded="false" aria-controls="links">Menu</button>
     <a class="btn sm hot" href="https://github.com/KumarRoushan9234/OSS-Railway">GitHub →</a>
   </div>
 </nav>
 
-<header class="hero">
+<header class="hero" data-chart="multi" data-seed="4" data-tone="lime">
   <div class="wrap">
     <div>
       <div class="badge eyebrow"><span class="dot-live"></span> Alpha · v0.1 · open source</div>
@@ -64,7 +67,7 @@
   </div>
 </header>
 
-<div class="numbers">
+<div class="numbers" data-chart="bars" data-seed="2" data-tone="ink">
   <div class="wrap stagger">
     <div class="num reveal"><b data-count="1">1</b><span>command to install</span></div>
     <div class="num reveal"><b data-count="65" data-prefix="~" data-suffix=" MB">~65 MB</b><span>RAM: panel + Caddy</span></div>
@@ -90,10 +93,10 @@
       <p>Hosted platforms are great until the bill, the lock-in or the data question shows up. Self-hosted ones are great until you spend a weekend on them. This tries to be the short path between the two.</p>
     </div>
     <div class="picks stagger">
-      <div class="pick reveal"><div class="eyebrow">Fastest start</div><h3>One command</h3><p>Install on a bare VPS or from your laptop over SSH. Docker, HTTPS and the panel are set up for you, and nothing you already run is touched.</p></div>
-      <div class="pick reveal"><div class="eyebrow">Lightest</div><h3>~65 MB</h3><p>One Go binary and one SQLite file, plus Caddy. Measured on a real 16 GB VM next to other services, not on a clean demo box.</p></div>
-      <div class="pick reveal"><div class="eyebrow">Most careful</div><h3>Locked down</h3><p>Two-factor, passkeys, an audit log, encrypted secrets, read-only API tokens. The installer never switches a firewall on for you.</p></div>
-      <div class="pick reveal"><div class="eyebrow">Yours</div><h3>No lock-in</h3><p>Apache-2.0, no accounts, no telemetry. Logs stay on your machines, and AI analysis can run on your own computer.</p></div>
+      <div class="pick reveal" data-chart="line" data-seed="5" data-tone="ink" data-fit="stretch"><div class="eyebrow">Fastest start</div><h3>One command</h3><p>Install on a bare VPS or from your laptop over SSH. Docker, HTTPS and the panel are set up for you, and nothing you already run is touched.</p></div>
+      <div class="pick reveal" data-chart="bars" data-seed="6" data-tone="ink" data-fit="stretch"><div class="eyebrow">Lightest</div><h3>~65 MB</h3><p>One Go binary and one SQLite file, plus Caddy. Measured on a real 16 GB VM next to other services, not on a clean demo box.</p></div>
+      <div class="pick reveal" data-chart="scatter" data-seed="7" data-tone="ink" data-fit="stretch"><div class="eyebrow">Most careful</div><h3>Locked down</h3><p>Two-factor, passkeys, an audit log, encrypted secrets, read-only API tokens. The installer never switches a firewall on for you.</p></div>
+      <div class="pick reveal" data-chart="multi" data-seed="8" data-tone="teal" data-fit="stretch"><div class="eyebrow">Yours</div><h3>No lock-in</h3><p>Apache-2.0, no accounts, no telemetry. Logs stay on your machines, and AI analysis can run on your own computer.</p></div>
     </div>
   </div>
 </section>
@@ -127,7 +130,7 @@
   </div>
 </section>
 
-<section class="block quiz" id="pick">
+<section class="block quiz" id="pick" data-chart="multi" data-seed="9" data-tone="lime">
   <div class="wrap">
     <div class="head reveal">
       <div class="eyebrow">Pick your path</div>
@@ -177,7 +180,7 @@
       </div>
       <div class="panel">
         <div><pre id="way-code"></pre></div>
-        <div class="get"><div class="eyebrow">You get</div><h3 id="way-title"></h3><ul id="way-get"></ul></div>
+        <div class="get" data-chart="bars" data-seed="3" data-tone="ink" data-fit="stretch"><div class="eyebrow">You get</div><h3 id="way-title"></h3><ul id="way-get"></ul></div>
       </div>
     </div>
   </div>
@@ -226,7 +229,7 @@
   </div>
 </section>
 
-<section class="block status" id="status">
+<section class="block status" id="status" data-chart="line" data-seed="11" data-tone="ink">
   <div class="wrap">
     <div class="head reveal">
       <div class="eyebrow">Straight talk</div>
@@ -288,7 +291,7 @@
   </div>
 </section>
 
-<section class="cta">
+<section class="cta" data-chart="multi" data-seed="12" data-tone="lime">
   <div class="wrap">
     <h2 class="display">Your server. Your apps.</h2>
     <div class="actions">

@@ -188,6 +188,55 @@ chips.forEach((c) =>
   }),
 )
 
+// ---- chart backgrounds: any element with data-chart="line|multi|bars|scatter" gets a plot behind its content ----
+function rng(seed) {
+  let a = (seed * 2654435761) >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+function chartSvg(kind, seed, stretch) {
+  const W = 1200, H = 600, N = 26, r = rng(seed)
+  const f = (n) => n.toFixed(1)
+  const grid = []
+  for (let i = 1; i < 6; i++) grid.push(`<line class="g${i % 2 ? ' d' : ''}" x1="0" x2="${W}" y1="${f((H * i) / 6)}" y2="${f((H * i) / 6)}"/>`)
+  if (kind !== 'bars') for (let i = 1; i < 12; i++) grid.push(`<line class="g d" x1="${f((W * i) / 12)}" x2="${f((W * i) / 12)}" y1="0" y2="${H}"/>`)
+  const labels = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'].map((t, i) => `<text x="${40 + (i * W) / 6}" y="${H - 14}">${t}</text>`).join('')
+  const series = (base, slope, noise) => Array.from({ length: N }, (_, i) => [(W * i) / (N - 1), H * (base - (slope * i) / (N - 1) + (r() - 0.5) * noise)])
+  const path = (pts) => 'M' + pts.map((p) => f(p[0]) + ' ' + f(p[1])).join(' L')
+  let body = ''
+  if (kind === 'line' || kind === 'multi') {
+    const a = series(0.74, 0.42, 0.12)
+    body += `<path class="ar" d="${path(a)} L${W} ${H} L0 ${H} Z"/><path class="ln" pathLength="1" d="${path(a)}"/>`
+    if (kind === 'multi') body += `<path class="ln b" pathLength="1" d="${path(series(0.55, -0.08, 0.16))}"/>`
+    body += a.filter((_, i) => i % 3 === 1).map((p, i) => `<circle class="pt" style="--i:${i}" cx="${f(p[0])}" cy="${f(p[1])}" r="7"/>`).join('')
+  } else if (kind === 'bars') {
+    const n = 22, bw = (W / n) * 0.62
+    body = Array.from({ length: n }, (_, i) => {
+      const h = H * (0.12 + 0.6 * ((i / n) * 0.7 + r() * 0.5))
+      return `<rect class="bar" style="--i:${i}" x="${f((W / n) * i + (W / n - bw) / 2)}" y="${f(H - h)}" width="${f(bw)}" height="${f(h)}" rx="6"/>`
+    }).join('')
+  } else {
+    const pts = Array.from({ length: 44 }, (_, i) => { const x = (W * i) / 43; return [x, H * (0.78 - 0.5 * (i / 43) + (r() - 0.5) * 0.34)] })
+    body = `<path class="ln" pathLength="1" d="${path([pts[0], pts[pts.length - 1]].map((p, i) => [p[0], H * (i ? 0.3 : 0.76)]))}"/>` + pts.map((p, i) => `<circle class="pt" style="--i:${i % 14}" cx="${f(p[0])}" cy="${f(p[1])}" r="${3 + Math.round(r() * 6)}"/>`).join('')
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="${stretch ? 'none' : 'xMidYMid slice'}" aria-hidden="true" focusable="false">${grid.join('')}${kind === 'bars' ? '' : labels}${body}</svg>`
+}
+const chartIO = 'IntersectionObserver' in window && new IntersectionObserver((es) => {
+  for (const e of es) if (e.isIntersecting) { e.target.classList.add('in'); chartIO.unobserve(e.target) }
+}, { threshold: 0.15 })
+$$('[data-chart]').forEach((el) => {
+  const bg = document.createElement('div')
+  bg.className = 'chart-bg'
+  bg.setAttribute('aria-hidden', 'true')
+  bg.innerHTML = chartSvg(el.dataset.chart, Number(el.dataset.seed || 1), el.dataset.fit === 'stretch')
+  el.prepend(bg)
+  chartIO ? chartIO.observe(bg) : bg.classList.add('in')
+})
+
 // ---- docs: highlight the section being read ----
 const toc = $$('.toc a')
 if (toc.length && 'IntersectionObserver' in window) {

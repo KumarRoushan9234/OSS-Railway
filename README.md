@@ -20,6 +20,12 @@ Or from your own computer over SSH:
 npx oss-railway setup root@YOUR_SERVER_IP
 ```
 
+Clouds that don't allow root logins (Azure, Oracle, AWS) work too: use the login user and your key file. The user needs passwordless `sudo`, which those images have.
+
+```bash
+npx oss-railway setup azureuser@YOUR_SERVER_IP -i path/to/key.pem
+```
+
 It installs Docker if needed, starts the panel and Caddy, and prints a dashboard address and a one-time setup code. Open the address, enter the code, create your account, and deploy.
 
 The installer only adds rules to a firewall that is already on, and never touches containers it didn't create.
