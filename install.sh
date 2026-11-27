@@ -131,22 +131,32 @@ docker run -d --name ossr-panel --restart unless-stopped --network ossr \
 
 say "Waiting for panel"
 CODE=""
+CLAIMED=""
 i=0
 while [ "$i" -lt 60 ]; do
   if CODE=$(docker exec ossr-panel cat /data/setup-code 2>/dev/null) && [ -n "$CODE" ]; then
     break
   fi
   CODE=""
+  # Re-running the installer to update: the account already exists, so there is no code.
+  if docker exec ossr-panel wget -qO- http://localhost:3000/api/me 2>/dev/null | grep -q '"needs_setup":false'; then
+    CLAIMED=1
+    break
+  fi
   i=$((i + 1))
   sleep 1
 done
 
-if [ -z "$CODE" ]; then
+if [ -z "$CODE" ] && [ -z "$CLAIMED" ]; then
   if [ "$(docker inspect -f '{{.State.Running}}' ossr-panel 2>/dev/null)" != "true" ]; then
     die "panel did not start; see: docker logs ossr-panel"
   fi
-  CODE="(none - setup already completed)"
+  die "the panel started but did not report ready; see: docker logs ossr-panel"
 fi
 
 HOST="$(printf '%s' "$IP" | tr '.' '-').sslip.io"
-printf '\nOSS Railway is running.\n\n  Open:        https://%s\n               (or http://%s if HTTPS is not ready yet)\n  Setup code:  %s\n\n' "$HOST" "$IP" "$CODE"
+if [ -n "$CLAIMED" ]; then
+  printf '\nOSS Railway was updated and is running. Your account, services and data are unchanged.\n\n  Open:  https://%s\n         (or http://%s if HTTPS is not ready yet)\n\n' "$HOST" "$IP"
+else
+  printf '\nOSS Railway is running.\n\n  Open:        https://%s\n               (or http://%s if HTTPS is not ready yet)\n  Setup code:  %s\n\n' "$HOST" "$IP" "$CODE"
+fi

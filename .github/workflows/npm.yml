@@ -1,0 +1,37 @@
+# Publishes the npm installer (package "oss-railway") for the latest GitHub Release.
+# Runs after every ci run and on demand (Actions -> npm -> Run workflow). It does nothing when
+# that version is already on npm, so re-running is safe. Needs the NPM_TOKEN repository secret.
+name: npm
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Publish the latest release if it is not on npm yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          tag=$(gh release view --json tagName --jq .tagName)
+          version=${tag#v}
+          if npm view "oss-railway@$version" version >/dev/null 2>&1; then
+            echo "oss-railway@$version is already on npm"; exit 0
+          fi
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN is not set; cannot publish oss-railway@$version"; exit 0
+          fi
+          cd npm
+          npm version --no-git-tag-version "$version"
+          npm publish --access public

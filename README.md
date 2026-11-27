@@ -53,7 +53,8 @@ Everything stays on your server: one Go binary, one SQLite file, no telemetry.
 | Two-factor, passkeys, tokens, audit log | Working, tested locally; passkeys not yet on a real device |
 | AI analysis (Ollama) and remote access (Cloudflare Tunnel) | Working, tested locally |
 | Desktop app | Works; installers are unsigned |
-| Install on a fresh VPS, Let's Encrypt certificates | **Not tested yet** |
+| One-line install, HTTPS with Let's Encrypt, update by re-running | Working: tested on one Azure Ubuntu 24.04 VM, running beside other services |
+| Other Linux distros, ARM servers, 1 GB servers | **Not tested yet** |
 | Slack and Discord messages, MCP from a real Claude app | **Not tested yet** |
 
 Full list: [docs/ROADMAP.md](docs/ROADMAP.md).

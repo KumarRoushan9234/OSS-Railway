@@ -6,7 +6,7 @@
 #   3. attach Linux binaries + install.sh + checksums
 #   4. publish the panel image to GitHub Packages (:latest, :X.Y.Z, :sha-<commit>)
 #   5. build the desktop app (Windows, macOS, Linux installers) onto the release
-#   6. publish the npm installer (only if the NPM_TOKEN secret is set)
+#   6. (npm.yml) publish the npm installer after this workflow, if that version isn't on npm yet
 # Pushes that only change docs or the website skip the release.
 name: ci
 on:
@@ -152,22 +152,3 @@ jobs:
           projectPath: desktop
           tagName: v${{ needs.version.outputs.version }}
           releaseName: v${{ needs.version.outputs.version }}
-
-  npm:
-    needs: version
-    if: needs.version.outputs.version != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-      - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then echo "NPM_TOKEN not set; skipping npm publish"; exit 0; fi
-          cd npm
-          npm version --no-git-tag-version "${{ needs.version.outputs.version }}"
-          npm publish --access public
