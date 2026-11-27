@@ -6,7 +6,7 @@ Status as of 2026-11-27. "Local" means tested on Docker Desktop on Windows. "VM"
 
 | Area | What exists | Tested |
 |---|---|---|
-| Install | `install.sh` (Docker, swap, firewall, panel + Caddy), `npx oss-railway setup root@IP` | **VM**: the real `curl \| sh` command, then re-running it to update (5 s, data kept) |
+| Install | `install.sh` (Docker, swap, firewall, panel + Caddy), `npx oss-railway setup root@IP` | **VM**: the real `curl \| sh` command; re-running it to update (5 s, data kept); the documented uninstall (nothing of the server's own left touched); a fresh install with `npx oss-railway setup azureuser@IP -i key.pem` from Windows (9 s). The same 42-check test passed after each install |
 | Panel | One Go binary, SQLite, embedded React dashboard; ~50 MB RAM panel + ~48 MB Caddy | local |
 | Deploys | Dockerfile, no Dockerfile (Railpack), Docker image; health-checked switch; rollback (3 images) | local |
 | GitHub | GitHub App via manifest, repo import (private repos), push-to-deploy webhook (HMAC checked) | **end to end**: app created on a real account, private repo deployed, `git push` redeployed through a tunnel |

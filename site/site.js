@@ -57,8 +57,8 @@ const installs = {
     out: ['==> Connecting over SSH', '==> Running the installer on 203.0.113.7', '==> Pulling ghcr.io/kumarroushan9234/oss-railway:latest', '==> Starting panel', '', 'OSS Railway is running.', '  Open:        https://203-0-113-7.sslip.io', '  Setup code:  XXXX-XXXX'],
   },
   docker: {
-    cmd: 'docker run -d --name ossr-panel --network ossr -v /var/run/docker.sock:/var/run/docker.sock -v ossr-data:/data ghcr.io/kumarroushan9234/oss-railway',
-    out: ['(see "Try it locally" in the README for the full command)', '', 'Open http://localhost, enter the setup code,', 'create your account.'],
+    cmd: 'docker network create ossr && docker run -d --name ossr-panel --network ossr --restart unless-stopped -v /var/run/docker.sock:/var/run/docker.sock -v ossr-data:/data -v /proc:/host/proc:ro -v /:/host/root:ro --cap-add SYS_PTRACE --add-host host.docker.internal:host-gateway -e OSSR_PUBLIC_IP=203.0.113.7 ghcr.io/kumarroushan9234/oss-railway',
+    out: ['==> Panel started; it starts Caddy on ports 80 and 443 itself', '', '$ docker exec ossr-panel cat /data/setup-code', 'XXXX-XXXX', '', 'Open: https://203-0-113-7.sslip.io  (http://localhost on your own computer; leave out OSSR_PUBLIC_IP there)'],
   },
 }
 const termEl = $('#term-out')

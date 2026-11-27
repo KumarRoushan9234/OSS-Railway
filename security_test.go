@@ -278,3 +278,38 @@ func TestLogStoreAndSearch(t *testing.T) {
 		t.Fatal("deleted line still in the index")
 	}
 }
+
+func TestOnlyFailedSignInsCountTowardTheLimit(t *testing.T) {
+	a := testApp(t)
+	a.limiter = newRateLimiter(10, 15*time.Minute)
+	srv := httptest.NewServer(a.routes(fstest.MapFS{"index.html": {Data: []byte("ok")}}))
+	defer srv.Close()
+	login := func(pw string) int {
+		req, _ := http.NewRequest("POST", srv.URL+"/api/login", strings.NewReader(`{"email":"me@example.com","password":"`+pw+`"}`))
+		req.Header.Set("X-OSSR", "1")
+		req.Header.Set("Content-Type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.StatusCode
+	}
+	code := setupCodeForTest(t, a)
+	req, _ := http.NewRequest("POST", srv.URL+"/api/setup", strings.NewReader(`{"code":"`+code+`","email":"me@example.com","password":"right password 1"}`))
+	req.Header.Set("X-OSSR", "1")
+	http.DefaultClient.Do(req)
+
+	for i := 0; i < 25; i++ { // the owner signing in many times (scripts, desktop app, new browsers)
+		if c := login("right password 1"); c != 200 {
+			t.Fatalf("successful sign-in %d got %d: successes must not count", i+1, c)
+		}
+	}
+	for i := 0; i < 10; i++ {
+		if c := login("wrong"); c != 401 {
+			t.Fatalf("wrong password %d got %d", i+1, c)
+		}
+	}
+	if c := login("right password 1"); c != 429 {
+		t.Fatalf("after 10 failures the address must be blocked, got %d", c)
+	}
+}

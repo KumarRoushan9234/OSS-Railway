@@ -155,8 +155,10 @@ docker exec ossr-panel cat /data/setup-code</code></pre>
           <p>Removes the panel, the proxy and everything the panel created. Your own containers are not touched.</p>
           <pre><code>docker rm -f $(docker ps -aq --filter name=ossr-)
 docker volume rm $(docker volume ls -q --filter name=ossr-)
-docker network rm ossr</code></pre>
-          <p>The volumes hold the panel's data, backups and your databases, so copy anything you want to keep first.</p>
+docker network rm ossr
+docker image rm $(docker images -q "ossr/*") ghcr.io/kumarroushan9234/oss-railway</code></pre>
+          <p>The volumes hold the panel's data, backups and your databases, so copy anything you want to keep first. Run with <code>sudo</code> if your user isn't in the <code>docker</code> group.</p>
+          <p>Docker's shared build cache is left alone, because other projects on the server use it too. To free it as well: <code>docker builder prune</code>.</p>
         </article>
 <article id="limits">
           <h2>Known limits</h2>
@@ -166,6 +168,7 @@ docker network rm ossr</code></pre>
             <li>Docker can't cap disk per container, so disk use is shown and alerted on instead of limited.</li>
             <li>On Ubuntu and other AppArmor hosts, the Server view can't read other processes' names. Container names still show.</li>
             <li>Build-time variables are visible in process arguments while Railpack plans a build.</li>
+            <li>Each fresh install asks Let's Encrypt for a new certificate. Let's Encrypt allows 5 identical certificates per week, so reinstalling the same server many times in a week can leave HTTPS failing for a few days (plain http still works). Updating by re-running the installer keeps the certificate.</li>
             <li>A tunnel's temporary address changes each time it starts. Use your own Cloudflare tunnel for a fixed address.</li>
             <li>One admin account. Team accounts and several servers in one panel are on the roadmap.</li>
           </ul>

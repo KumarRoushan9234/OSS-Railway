@@ -123,7 +123,7 @@ func (a *App) handleAudit(w http.ResponseWriter, r *http.Request) {
 // POST /api/password {current, new, code}: needs the current password, and a 2FA code when 2FA is on.
 // Every other session is signed out.
 func (a *App) handleChangePassword(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -137,10 +137,12 @@ func (a *App) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.checkPassword(uid, in.Current) != nil {
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "current password is wrong")
 		return
 	}
 	if secret, _ := a.userTOTP(uid); secret != "" && !a.checkSecondFactor(uid, in.Code) {
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "wrong authenticator code")
 		return
 	}

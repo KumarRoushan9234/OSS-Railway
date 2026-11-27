@@ -175,7 +175,7 @@ func setMFACookie(w http.ResponseWriter, r *http.Request, value string, maxAge i
 
 // POST /api/login/2fa {code}: second step after a correct password.
 func (a *App) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -196,6 +196,7 @@ func (a *App) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !a.checkSecondFactor(uid, in.Code) {
+		a.limiter.fail(clientIP(r))
 		if attempts+1 >= maxMFAAttempts {
 			a.dropLoginToken(c.Value)
 			httpError(w, http.StatusUnauthorized, "too many wrong codes, sign in again")
@@ -213,7 +214,7 @@ func (a *App) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/login/recover: emails a one-time sign-in link. Needs the password step first.
 func (a *App) handleLoginRecover(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -231,6 +232,7 @@ func (a *App) handleLoginRecover(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusConflict, "email is not set up on this server; use a recovery code")
 		return
 	}
+	a.limiter.fail(clientIP(r))
 	var email string
 	a.db.QueryRow(`SELECT email FROM users WHERE id = ?`, uid).Scan(&email)
 	link := a.publicURL(r) + "/api/login/recover/" + a.newLoginToken(uid, "recover", recoverTTL)

@@ -225,7 +225,7 @@ func (a *App) handleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/passkeys/login/begin
 func (a *App) handlePasskeyLoginBegin(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -245,7 +245,7 @@ func (a *App) handlePasskeyLoginBegin(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/passkeys/login/finish (body: the browser's assertion)
 func (a *App) handlePasskeyLoginFinish(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -272,6 +272,7 @@ func (a *App) handlePasskeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	_, cred, err := wa.FinishPasskeyLogin(handler, c.session, r)
 	if err != nil || found == nil {
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "that passkey isn't registered here")
 		return
 	}

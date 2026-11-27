@@ -65,7 +65,7 @@ func (c *credentials) validate() error {
 }
 
 func (a *App) handleSetup(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -80,6 +80,7 @@ func (a *App) handleSetup(w http.ResponseWriter, r *http.Request) {
 	want, err := os.ReadFile(a.setupCodePath())
 	got := strings.ToUpper(strings.TrimSpace(c.Code))
 	if err != nil || subtle.ConstantTimeCompare([]byte(got), []byte(strings.TrimSpace(string(want)))) != 1 {
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "wrong setup code")
 		return
 	}
@@ -104,7 +105,7 @@ func (a *App) handleSetup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow(clientIP(r)) {
+	if a.limiter.blocked(clientIP(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again later")
 		return
 	}
@@ -118,6 +119,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, sql.ErrNoRows) {
 		// Same cost as a real check, so response time does not reveal which emails exist.
 		bcrypt.CompareHashAndPassword(dummyHash(), []byte(c.Password))
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
@@ -126,6 +128,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(c.Password)) != nil {
+		a.limiter.fail(clientIP(r))
 		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
@@ -262,9 +265,8 @@ func newRateLimiter(max int, window time.Duration) *rateLimiter {
 	return &rateLimiter{max: max, window: window, hits: map[string][]time.Time{}}
 }
 
-func (l *rateLimiter) allow(key string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+// recent drops entries older than the window. The caller holds l.mu.
+func (l *rateLimiter) recent(key string) []time.Time {
 	cutoff := time.Now().Add(-l.window)
 	kept := l.hits[key][:0]
 	for _, t := range l.hits[key] {
@@ -272,10 +274,25 @@ func (l *rateLimiter) allow(key string) bool {
 			kept = append(kept, t)
 		}
 	}
-	if len(kept) >= l.max {
+	if len(kept) == 0 {
+		delete(l.hits, key)
+	} else {
 		l.hits[key] = kept
-		return false
 	}
-	l.hits[key] = append(kept, time.Now())
-	return true
+	return kept
+}
+
+// blocked reports whether this address has failed too often recently. Successful
+// sign-ins never count, so the owner is not locked out by their own normal use.
+func (l *rateLimiter) blocked(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return len(l.recent(key)) >= l.max
+}
+
+// fail records one failed attempt (or one costly action, like sending an email).
+func (l *rateLimiter) fail(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.hits[key] = append(l.recent(key), time.Now())
 }
