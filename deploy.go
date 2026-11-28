@@ -36,6 +36,9 @@ func (a *App) deployLogPath(id int64) string {
 
 // deploy queues a deployment. With image != "" it skips the build (rollback).
 func (a *App) deploy(s *Service, reason, image string) (int64, error) {
+	if s.IsExternal() {
+		return 0, errExternal
+	}
 	a.mu.Lock()
 	if a.building[s.ID] {
 		a.mu.Unlock()

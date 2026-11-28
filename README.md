@@ -38,6 +38,7 @@ The installer only adds rules to a firewall that is already on, and never touche
 - **Automatic HTTPS** through Caddy, with a free `name.<ip>.sslip.io` address until you add your own domain
 - **Safe deploys**: health-checked switchover, one-click rollback
 - **Canvas dashboard**: services as cards you drag around, side panels, `Ctrl+K` search, themes
+- **Adopt what's already running**: containers that were on the server before (plain `docker run` or a whole Compose project) show on the canvas; one click adopts them for logs, metrics, crash alerts, restart/stop/start and CPU/memory limits, without rebuilding or changing them
 - **Server view**: every listening port with its process and container, every container on the machine (even ones you started by hand), volumes and disk use
 - **CPU and memory limits** per service, applied live, with suggestions from real usage and a warning when limits add up to more than the server has
 - **Logs and metrics**: live build and runtime logs, searchable for 7 days; CPU, memory, network and disk per service

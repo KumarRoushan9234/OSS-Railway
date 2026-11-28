@@ -125,7 +125,7 @@ func (a *App) reloadProxy(ctx context.Context) error {
 	}
 	var routes []route
 	for _, s := range services {
-		if s.IsDatabase() || s.Container == "" || s.Port == 0 {
+		if s.IsDatabase() || s.IsExternal() || s.Container == "" || s.Port == 0 {
 			continue
 		}
 		routes = append(routes, route{hosts: a.serviceHosts(s), upstream: fmt.Sprintf("%s:%d", s.Container, s.Port)})

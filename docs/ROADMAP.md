@@ -15,6 +15,7 @@ Status as of 2026-11-27. "Local" means tested on Docker Desktop on Windows. "VM"
 | Env vars | Encrypted at rest, raw editor | local |
 | Logs | Live build and runtime logs; stored 7 days in SQLite FTS5, searchable per service or across all | local |
 | Metrics | Host + per-container CPU, memory, network, disk; 7 days | local |
+| Adopt existing containers | Shows every container not created by the panel on the canvas (grouped by Compose project); adopt one or a whole project for logs, metrics, crash alerts, restart/stop/start and live limits; never rebuilt, recreated or re-routed; "stop managing" hands it back | local: 25 checks incl. a real crash and stop-managing; your `runner-stream` containers were listed but not touched |
 | Server view | Every listening port (container), every container incl. external, volumes, disk | **VM**: shows the VM's own services as external; process names blank under AppArmor |
 | Resources | CPU/memory limits applied live; usage + suggested limits; allocation split across services with overcommit warnings | **VM**: 0.5 CPU / 256 MB applied to a running container |
 | Alerts | Crash, crash loop, OOM, deploy failed, disk, memory; email + Slack/Discord webhook | email through a local SMTP server; webhook payload by test, not a real Slack/Discord |

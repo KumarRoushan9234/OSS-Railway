@@ -164,7 +164,7 @@ func validWebhook(u string) bool {
 func (a *App) watchEvents(ctx context.Context) {
 	for ctx.Err() == nil {
 		cmd := exec.CommandContext(ctx, "docker", "events",
-			"--filter", "type=container", "--filter", "label=ossr.service",
+			"--filter", "type=container",
 			"--filter", "event=die", "--filter", "event=oom", "--filter", "event=health_status",
 			"--format", "{{json .}}")
 		out, err := cmd.StdoutPipe()
@@ -204,6 +204,12 @@ func (a *App) handleEvent(line []byte) {
 		}
 	}
 	sid, _ := strconv.ParseInt(attrs["ossr.service"], 10, 64)
+	if sid == 0 {
+		// Not ours: only adopted containers are watched.
+		if a.db.QueryRow(`SELECT id FROM services WHERE source = ? AND container = ?`, externalSource, name).Scan(&sid) != nil {
+			return
+		}
+	}
 	label := name
 	if s, err := a.service(sid); err == nil {
 		label = s.Name

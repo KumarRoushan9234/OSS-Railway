@@ -20,7 +20,10 @@ export function ServicePanel({ service: s, services, tab, first, onChange }: { s
   const [openLog, setOpenLog] = useState<number | null>(null)
   const [deployments, reloadDeployments] = usePoll(() => api<Deployment[]>(`/services/${s.id}/deployments`), 4000, [s.id])
   const isDb = s.kind === 'database'
-  const tabs = ['deployments', 'logs', 'variables', 'metrics', ...(s.source === 'postgres' || s.source === 'mysql' ? ['backups'] : []), 'settings']
+  const isExt = s.source === 'external'
+  const tabs = isExt ? ['logs', 'metrics', 'settings'] : ['deployments', 'logs', 'variables', 'metrics', ...(s.source === 'postgres' || s.source === 'mysql' ? ['backups'] : []), 'settings']
+  // An adopted container has no deployments: open on its logs.
+  if (isExt && (tab === 'deployments' || tab === 'variables' || tab === 'backups')) tab = 'logs'
 
   // Open the log of a running deploy automatically.
   useEffect(() => {
@@ -66,11 +69,19 @@ export function ServicePanel({ service: s, services, tab, first, onChange }: { s
           </div>
           <div className="row">
             {s.status === 'running' && (
-              <button className={isDb ? undefined : 'hide-sm'} onClick={() => act(() => api(`/services/${s.id}/restart`, { method: 'POST' }))}>
+              <button className={isDb || isExt ? undefined : 'hide-sm'} onClick={() => act(() => api(`/services/${s.id}/restart`, { method: 'POST' }).then(onChange))}>
                 Restart
               </button>
             )}
-            {!(isDb && s.status === 'running') && (
+            {s.status === 'running' && (isExt || isDb) && (
+              <button onClick={() => act(() => api(`/services/${s.id}/stop`, { method: 'POST' }).then(onChange))}>Stop</button>
+            )}
+            {isExt && s.status !== 'running' && (
+              <button className="primary" onClick={() => act(() => api(`/services/${s.id}/start`, { method: 'POST' }).then(onChange))}>
+                Start
+              </button>
+            )}
+            {!isExt && !(isDb && s.status === 'running') && (
               <button className="primary" onClick={deploy}>
                 {isDb ? 'Start' : 'Deploy'}
               </button>
@@ -373,6 +384,7 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
   const [confirm, setConfirm] = useState('')
   const [saved, flash] = useFlash()
   const isDb = s.kind === 'database'
+  const isExt = s.source === 'external'
   const isGit = s.source === 'github' || s.source === 'git'
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
 
@@ -380,7 +392,7 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
     e.preventDefault()
     onError('')
     const body: Record<string, unknown> = { cpu: Number(form.cpu) || 0, memory: Number(form.memory) || 0 }
-    if (!isDb) Object.assign(body, { port: Number(form.port) || 0, domain: form.domain })
+    if (!isDb && !isExt) Object.assign(body, { port: Number(form.port) || 0, domain: form.domain })
     if (isGit) Object.assign(body, { branch: form.branch, root_dir: form.root_dir })
     if (s.source === 'github') body.autodeploy = form.autodeploy
     if (s.source === 'image') body.image = form.image
@@ -400,7 +412,13 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
         <p className="muted">
           {sourceLabel[s.source]}
           {s.repo ? ' · ' + s.repo : ''}
+          {isExt && <> container <code>{s.image}</code></>}
         </p>
+        {isExt && (
+          <p className="muted" style={{ fontSize: 13 }}>
+            This container was created outside OSS Railway. Its image, variables, ports and volumes stay as they are; update it the way it was created (for example <code>docker compose up -d</code>).
+          </p>
+        )}
         {isGit && (
           <div className="two">
             <label>
@@ -421,7 +439,7 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
             <input type="checkbox" checked={form.autodeploy} onChange={set('autodeploy')} /> Deploy on push
           </label>
         )}
-        {!isDb && (
+        {!isDb && !isExt && (
           <>
             <h2>Networking</h2>
             <div className="two">
@@ -448,6 +466,25 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
           <button className="primary">{saved ? 'Saved' : 'Save'}</button>
         </div>
       </form>
+      {isExt ? (
+        <div className="card panel stack">
+          <h2>Stop managing {s.name}</h2>
+          <p className="muted" style={{ fontSize: 13 }}>
+            OSS Railway forgets it. The container keeps running exactly as it is.
+          </p>
+          <div>
+            <button
+              onClick={async () => {
+                await api(`/services/${s.id}`, { method: 'DELETE' })
+                onChange()
+                go('/')
+              }}
+            >
+              Stop managing
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="card panel stack">
         <h2 style={{ color: 'var(--danger)' }}>Delete {s.name}</h2>
         <label>
@@ -470,6 +507,7 @@ function Settings({ s, onError, onChange }: { s: Service; onError: (e: string) =
           </button>
         </div>
       </div>
+      )}
     </>
   )
 }

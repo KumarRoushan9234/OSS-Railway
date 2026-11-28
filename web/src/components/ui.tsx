@@ -31,7 +31,7 @@ export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; s
 }
 
 export function kindIcon(source: Service['source']) {
-  return source === 'github' ? 'github' : source === 'git' ? 'git' : source === 'image' ? 'box' : 'database'
+  return source === 'github' ? 'github' : source === 'git' ? 'git' : source === 'image' || source === 'external' ? 'box' : 'database'
 }
 
 export function Logo() {

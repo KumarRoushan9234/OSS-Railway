@@ -38,6 +38,7 @@ type hostContainer struct {
 	Status    string  `json:"status"`
 	Ports     string  `json:"ports"`
 	ServiceID int64   `json:"service_id"` // 0 when not deployed by OSS Railway
+	Project   string  `json:"project"`    // Docker Compose project, if any
 	CPU       float64 `json:"cpu"`        // percent of one core
 	Mem       int64   `json:"mem"`
 	MemLimit  int64   `json:"mem_limit"`
@@ -66,6 +67,15 @@ func (a *App) handleServer(w http.ResponseWriter, r *http.Request) {
 	go func() { defer wg.Done(); ports = listeningPorts(a.cfg.HostProc) }()
 	wg.Wait()
 	a.dropStaleOwners(containers)
+	if services, err := a.services(); err == nil {
+		for _, sv := range services {
+			for i := range containers {
+				if sv.IsExternal() && containers[i].Name == sv.Container {
+					containers[i].ServiceID = sv.ID
+				}
+			}
+		}
+	}
 	for i := range containers {
 		containers[i].Size = sizes[containers[i].Name]
 	}
@@ -111,6 +121,7 @@ func (a *App) hostContainers(ctx context.Context) []hostContainer {
 			continue
 		}
 		hc := hostContainer{ID: c.ID, Name: c.Names, Image: c.Image, State: c.State, Status: c.Status, Ports: c.Ports}
+		hc.Project = parseLabels(c.Labels)["com.docker.compose.project"]
 		for _, l := range strings.Split(c.Labels, ",") {
 			if v, ok := strings.CutPrefix(l, "ossr.service="); ok {
 				hc.ServiceID, _ = strconv.ParseInt(v, 10, 64)
@@ -197,7 +208,7 @@ func (a *App) dropStaleOwners(cs []hostContainer) {
 	}
 	for i, c := range cs {
 		s := byID[c.ServiceID]
-		if s == nil || (c.Name != s.Container && c.Name != dbContainer(s) && !strings.HasPrefix(c.Name, "ossr-"+s.Name+"-")) {
+		if s == nil || (!s.IsExternal() && c.Name != s.Container && c.Name != dbContainer(s) && !strings.HasPrefix(c.Name, "ossr-"+s.Name+"-")) {
 			cs[i].ServiceID = 0
 		}
 	}

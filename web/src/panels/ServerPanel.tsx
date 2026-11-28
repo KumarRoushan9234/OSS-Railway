@@ -1,10 +1,10 @@
-import { api, bytes } from '../api'
+import { api, bytes, type External } from '../api'
 import { go, usePoll } from '../hooks'
 import { Icon } from '../components/ui'
 
 export interface ServerInfo {
   ports: { port: number; address: string; process: string; pid: number; container: string; public: boolean }[]
-  containers: { id: string; name: string; image: string; state: string; status: string; ports: string; service_id: number; cpu: number; mem: number; mem_limit: number; size: string }[]
+  containers: { id: string; name: string; image: string; state: string; status: string; ports: string; project: string; service_id: number; cpu: number; mem: number; mem_limit: number; size: string }[]
   volumes: { name: string; size: string; links: string }[]
   host: { cpus: number; mem: number; mem_total: number; disk: number; disk_total: number }
   allocation: Allocation
@@ -113,7 +113,7 @@ function Meter({ label, used, total, format }: { label: string; used: number; to
 }
 
 // Everything on the machine: listening ports, every container (deployed here or not), volumes.
-export function ServerPanel() {
+export function ServerPanel({ onAdopt }: { onAdopt: (c: External) => void }) {
   const [info] = usePoll(() => api<ServerInfo>('/server'), 10000)
 
   return (
@@ -208,7 +208,19 @@ export function ServerPanel() {
                                 {c.image}
                               </span>
                             </span>
-                            {!c.service_id && <span className="tag">{c.name === 'ossr-panel' || c.name === 'ossr-caddy' ? 'system' : 'external'}</span>}
+                            {!c.service_id && (c.name === 'ossr-panel' || c.name === 'ossr-caddy' || c.name === 'ossr-tunnel') && <span className="tag">system</span>}
+                            {!c.service_id && !c.name.startsWith('ossr-') && (
+                              <button
+                                className="tag"
+                                style={{ cursor: 'pointer', background: 'var(--accent-soft)' }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onAdopt({ name: c.name, image: c.image, state: c.state, status: c.status, ports: c.ports, project: c.project, service_id: 0 })
+                                }}
+                              >
+                                Adopt
+                              </button>
+                            )}
                           </span>
                         </td>
                         <td>{c.state === 'running' ? c.cpu.toFixed(1) + '%' : '—'}</td>

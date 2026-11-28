@@ -51,7 +51,20 @@ func (a *App) handleGitHubStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DELETE /api/github: forget the connected app so it can be connected again, for example from another account.
+// The app itself stays on github.com until its owner deletes it there.
+func (a *App) handleGitHubDisconnect(w http.ResponseWriter, r *http.Request) {
+	for _, key := range []string{"gh_app_id", "gh_app_slug", "gh_pem", "gh_webhook_secret", "gh_client_secret", "gh_client_id", "gh_installations", "gh_state"} {
+		if err := a.setSetting(key, ""); err != nil {
+			serverError(w, a, err)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GET /api/github/manifest: the form the browser POSTs to github.com.
+// ?public=1 makes the app installable from any GitHub account or organization; by default only its creator can install it.
 func (a *App) handleGitHubManifest(w http.ResponseWriter, r *http.Request) {
 	base := a.baseURL(r)
 	state := randomToken(16)
@@ -61,7 +74,7 @@ func (a *App) handleGitHubManifest(w http.ResponseWriter, r *http.Request) {
 		"url":          base,
 		"redirect_url": base + "/api/github/callback",
 		"setup_url":    base + "/api/github/installed",
-		"public":       false,
+		"public":       r.URL.Query().Get("public") == "1",
 		"hook_attributes": map[string]any{
 			"url":    base + "/api/github/webhook",
 			"active": !isLocalHost(r.Host), // GitHub cannot reach localhost

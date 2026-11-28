@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ago, api, bytes, linkServices, type Me, type Overview, type Point, type Service } from './api'
+import { ago, api, bytes, linkServices, type External, type Me, type Overview, type Point, type Service } from './api'
 import { go, isTyping, useKey, usePoll, useRoute } from './hooks'
 import { setPrefs } from './prefs'
 import { passkeysSupported, signInWithPasskey } from './passkey'
@@ -10,6 +10,7 @@ import { NewService } from './panels/NewService'
 import { ServicePanel } from './panels/ServicePanel'
 import { SettingsPanel } from './panels/SettingsPanel'
 import { ServerPanel } from './panels/ServerPanel'
+import { AdoptDialog } from './panels/Adopt'
 
 export function App() {
   const [me, setMe] = useState<Me | null>(null)
@@ -172,6 +173,12 @@ function SecondFactor({ emailRecovery, onDone, onRestart }: { emailRecovery: boo
 function Shell({ onSignOut }: { onSignOut: () => void }) {
   const { parts, query } = useRoute()
   const [services, reloadServices] = usePoll(() => api<Service[]>('/services'), 5000)
+  const [externals, reloadExternals] = usePoll(() => api<External[]>('/external'), 20000)
+  const [adoptPick, setAdoptPick] = useState<External | null>(null)
+  const afterAdopt = () => {
+    reloadServices()
+    reloadExternals()
+  }
   const [overview] = usePoll(() => api<Overview>('/overview'), 15000)
   const [series] = usePoll(() => api<Point[]>('/metrics/host?range=1h'), 15000)
   const [palette, setPalette] = useState(false)
@@ -303,6 +310,8 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
           onMove={move}
           onLink={link}
           onNew={() => go('/new')}
+          externals={externals ?? []}
+          onAdoptPick={setAdoptPick}
         />
       )}
 
@@ -323,9 +332,10 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
       ) : null}
 
       {selected && <ServicePanel key={selected.id} service={selected} services={services ?? []} tab={parts[2] || 'deployments'} first={query.has('first')} onChange={reloadServices} />}
-      {parts[0] === 'server' && <ServerPanel />}
+      {parts[0] === 'server' && <ServerPanel onAdopt={setAdoptPick} />}
       {parts[0] === 'settings' && <SettingsPanel security={query.has('security')} />}
       {parts[0] === 'new' && <NewService onClose={() => go('/')} onCreated={reloadServices} />}
+      {adoptPick && <AdoptDialog container={adoptPick} all={externals ?? []} onClose={() => setAdoptPick(null)} onDone={afterAdopt} />}
       {palette && (
         <Modal onClose={close} label="Search">
           <CommandList

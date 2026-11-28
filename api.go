@@ -65,6 +65,10 @@ func (a *App) routes(dist fs.FS) http.Handler {
 	m.HandleFunc("GET /api/tunnel", a.authSession(a.handleTunnelStatus))
 	m.HandleFunc("POST /api/tunnel", a.authSession(a.handleTunnelStart))
 	m.HandleFunc("DELETE /api/tunnel", a.authSession(a.handleTunnelStop))
+	m.HandleFunc("GET /api/external", a.auth(a.handleExternal))
+	m.HandleFunc("POST /api/adopt", a.auth(a.handleAdopt))
+	m.HandleFunc("POST /api/services/{id}/stop", a.auth(a.handleStop))
+	m.HandleFunc("POST /api/services/{id}/start", a.auth(a.handleStart))
 	m.HandleFunc("GET /api/logs/search", a.auth(a.handleLogSearch))
 	m.HandleFunc("GET /api/passkeys", a.authSession(a.handlePasskeys))
 	m.HandleFunc("POST /api/passkeys/register/begin", a.authSession(a.handlePasskeyRegisterBegin))
@@ -84,6 +88,7 @@ func (a *App) routes(dist fs.FS) http.Handler {
 	m.HandleFunc("GET /api/services/{id}/resources", a.auth(a.handleResources))
 
 	m.HandleFunc("GET /api/github", a.auth(a.handleGitHubStatus))
+	m.HandleFunc("DELETE /api/github", a.authSession(a.handleGitHubDisconnect))
 	m.HandleFunc("GET /api/github/manifest", a.authSession(a.handleGitHubManifest))
 	m.HandleFunc("GET /api/github/callback", a.authSession(a.handleGitHubCallback))
 	m.HandleFunc("GET /api/github/installed", a.authSession(a.handleGitHubInstalled))
@@ -195,6 +200,15 @@ func (a *App) view(ctx context.Context, s *Service) serviceView {
 	}
 	if s.IsDatabase() {
 		v.Kind = "database"
+	} else if s.IsExternal() {
+		// Not behind Caddy: link straight to the port the container publishes.
+		if s.Port > 0 {
+			host := "localhost"
+			if a.cfg.PublicIP != "" {
+				host = a.cfg.PublicIP
+			}
+			v.URLs = append(v.URLs, fmt.Sprintf("http://%s:%d", host, s.Port))
+		}
 	} else if s.Container != "" {
 		for _, h := range a.serviceHosts(s) {
 			v.URLs = append(v.URLs, siteURL(h))
@@ -344,6 +358,10 @@ func (a *App) handleUpdateService(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
+	if s.IsExternal() && (in.Branch != nil || in.RootDir != nil || in.Port != nil || in.Domain != nil || in.Image != nil || in.AutoDeploy != nil) {
+		httpError(w, http.StatusBadRequest, "for an adopted container only CPU and memory limits can be changed here")
+		return
+	}
 	if in.CPU != nil {
 		if *in.CPU < 0 || *in.CPU > maxCPU {
 			httpError(w, http.StatusBadRequest, "CPU limit must be 0 to 64 cores")
@@ -475,6 +493,7 @@ func (a *App) handleDeleteService(w http.ResponseWriter, r *http.Request) {
 	for _, q := range []string{
 		`DELETE FROM services WHERE id = ?`, `DELETE FROM env WHERE service_id = ?`,
 		`DELETE FROM deployments WHERE service_id = ?`, `DELETE FROM metrics WHERE target = CAST(? AS TEXT)`,
+		`DELETE FROM log_lines WHERE service_id = ?`,
 	} {
 		a.db.Exec(q, s.ID)
 	}
@@ -500,6 +519,10 @@ func (a *App) handleGetEnv(w http.ResponseWriter, r *http.Request) {
 func (a *App) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 	s, ok := a.serviceFromPath(w, r)
 	if !ok {
+		return
+	}
+	if s.IsExternal() {
+		httpError(w, http.StatusConflict, "an adopted container keeps the variables it was started with; change them where it was created")
 		return
 	}
 	var vars map[string]string

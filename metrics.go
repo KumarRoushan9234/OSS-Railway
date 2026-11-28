@@ -69,18 +69,32 @@ func (a *App) collectOnce(ctx context.Context, c *collector) {
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	out, err := docker(ctx, "ps", "--filter", "label=ossr.service", "--format", `{{.Names}}	{{.Label "ossr.service"}}`)
+	out, err := docker(ctx, "ps", "--format", `{{.Names}}	{{.Label "ossr.service"}}`)
 	if err != nil || out == "" {
 		return
+	}
+	adopted := map[string]string{}
+	if services, err := a.services(); err == nil {
+		for _, s := range services {
+			if s.IsExternal() {
+				adopted[s.Container] = strconv.FormatInt(s.ID, 10)
+			}
+		}
 	}
 	owner := map[string]string{}
 	args := []string{"stats", "--no-stream", "--format", "{{json .}}"}
 	for _, line := range strings.Split(out, "\n") {
-		name, id, ok := strings.Cut(line, "\t")
-		if ok {
+		name, id, _ := strings.Cut(line, "\t")
+		if id == "" {
+			id = adopted[name]
+		}
+		if id != "" {
 			owner[name] = id
 			args = append(args, name)
 		}
+	}
+	if len(owner) == 0 {
+		return
 	}
 	stats, err := docker(ctx, args...)
 	if err != nil {

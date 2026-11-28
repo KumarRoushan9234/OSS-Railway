@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base32"
 	"encoding/json"
 	"io"
@@ -311,5 +312,92 @@ func TestOnlyFailedSignInsCountTowardTheLimit(t *testing.T) {
 	}
 	if c := login("right password 1"); c != 429 {
 		t.Fatalf("after 10 failures the address must be blocked, got %d", c)
+	}
+}
+
+func TestAdoptedContainersAreNeverRebuiltOrRerouted(t *testing.T) {
+	a := testApp(t)
+	a.db.Exec(`INSERT INTO users(id, email, pass_hash, created) VALUES(1, 'a@b.c', 'x', 0)`)
+	a.db.Exec(`INSERT INTO api_tokens(name, token_hash, scope, created) VALUES('f', ?, 'full', 0)`, sha256Hex("ossr_full"))
+	a.db.Exec(`INSERT INTO services(id, name, source, image, port, container, created) VALUES(1, 'kx-gateway', 'external', 'scraper/gateway:local', 8710, 'kx-gateway', 0)`)
+	s, _ := a.service(1)
+	if _, err := a.deploy(s, "test", ""); err != errExternal {
+		t.Fatalf("deploy of an adopted container must be refused, got %v", err)
+	}
+	srv := httptest.NewServer(a.routes(fstest.MapFS{"index.html": {Data: []byte("ok")}}))
+	defer srv.Close()
+	call := func(method, path, body string) int {
+		req, _ := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer ossr_full")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.StatusCode
+	}
+	if c := call("PUT", "/api/services/1/env", `{"A":"b"}`); c != 409 {
+		t.Fatalf("env change on adopted container: %d", c)
+	}
+	if c := call("PATCH", "/api/services/1", `{"domain":"x.example.com"}`); c != 400 {
+		t.Fatalf("domain on adopted container: %d", c)
+	}
+	if c := call("POST", "/api/services/1/deploy", ``); c != 409 {
+		t.Fatalf("deploy endpoint on adopted container: %d", c)
+	}
+	v := a.view(context.Background(), s)
+	if len(v.URLs) != 1 || v.URLs[0] != "http://localhost:8710" {
+		t.Fatalf("adopted container should link to its published port, got %v", v.URLs)
+	}
+}
+
+func TestAdoptNamingAndSystemContainers(t *testing.T) {
+	a := testApp(t)
+	a.db.Exec(`INSERT INTO services(name, source, created) VALUES('web', 'image', 0)`)
+	for in, want := range map[string]string{"kx-gateway": "kx-gateway", "My_App.1": "my-app-1", "web": "web-2", "123api": "c-123api", "caddy": "my-caddy"} {
+		if got := a.serviceNameFor(in); got != want {
+			t.Errorf("%s -> %s, want %s", in, got, want)
+		}
+	}
+	if !systemContainer("ossr-panel", nil) || !systemContainer("ossr-web-3", map[string]string{"ossr.service": "3"}) || systemContainer("kx-gateway", map[string]string{}) {
+		t.Fatal("system container detection wrong")
+	}
+	if l := parseLabels("com.docker.compose.project=scraperupstream,a=b"); l["com.docker.compose.project"] != "scraperupstream" {
+		t.Fatalf("labels: %v", l)
+	}
+}
+
+func TestGitHubManifestVisibilityAndDisconnect(t *testing.T) {
+	a := testApp(t)
+	manifest := func(query string) map[string]any {
+		rec := httptest.NewRecorder()
+		a.handleGitHubManifest(rec, httptest.NewRequest("GET", "http://panel.example.com/api/github/manifest"+query, nil))
+		var out struct {
+			Manifest string `json:"manifest"`
+		}
+		json.Unmarshal(rec.Body.Bytes(), &out)
+		var m map[string]any
+		if err := json.Unmarshal([]byte(out.Manifest), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	if manifest("")["public"] != false {
+		t.Fatal("the app must be private unless asked otherwise")
+	}
+	if manifest("?public=1")["public"] != true {
+		t.Fatal("?public=1 must allow any account to install")
+	}
+
+	a.setSetting("gh_app_id", "42")
+	a.setSetting("gh_app_slug", "oss-railway-x")
+	a.setSecretSetting("gh_pem", "pem")
+	a.setSetting("gh_installations", "[7]")
+	rec := httptest.NewRecorder()
+	a.handleGitHubDisconnect(rec, httptest.NewRequest("DELETE", "/api/github", nil))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("disconnect: %d", rec.Code)
+	}
+	if a.setting("gh_app_id") != "" || a.setting("gh_pem") != "" || len(a.installations()) != 0 {
+		t.Fatal("disconnect must forget the app, its key and its installations")
 	}
 }

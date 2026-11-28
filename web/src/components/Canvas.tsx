@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ago, sourceLabel, type Service } from '../api'
+import { ago, sourceLabel, type External, type Service } from '../api'
 import { usePrefs } from '../prefs'
 import { Icon, kindIcon } from './ui'
 
@@ -55,9 +55,11 @@ interface Props {
   onMove: (id: number, at: XY) => void
   onLink: (from: number, to: number) => void
   onNew: () => void
+  externals: External[] // containers already on the server that the panel doesn't manage yet
+  onAdoptPick: (c: External) => void
 }
 
-export function Canvas({ services, selected, onOpen, onBackground, onMove, onLink, onNew }: Props) {
+export function Canvas({ services, selected, onOpen, onBackground, onMove, onLink, onNew, externals, onAdoptPick }: Props) {
   const prefs = usePrefs()
   const [w, h] = prefs.density === 'compact' ? [208, 84] : [248, 104]
   const el = useRef<HTMLDivElement>(null)
@@ -70,6 +72,21 @@ export function Canvas({ services, selected, onOpen, onBackground, onMove, onLin
   const base = useMemo(() => layout(services, w, h), [services, w, h])
   const pos = useCallback((id: number) => moved.get(id) ?? base.get(id) ?? { x: 0, y: 0 }, [moved, base])
   const byName = useMemo(() => new Map(services.map((s) => [s.name, s])), [services])
+
+  // Not-yet-adopted containers: dashed cards below the managed ones, one row group per Compose project.
+  const ghosts = useMemo(() => {
+    const todo = externals.filter((c) => !c.service_id)
+    let y = services.length ? Math.max(...services.map((s) => (base.get(s.id) ?? { y: 0 }).y)) + h + GAP * 1.5 : 0
+    const out: { c: External; at: XY; label?: string }[] = []
+    const groups = new Map<string, External[]>()
+    for (const c of todo) groups.set(c.project, [...(groups.get(c.project) ?? []), c])
+    for (const [project, list] of groups) {
+      list.forEach((c, i) => out.push({ c, at: { x: (i % 4) * (w + GAP), y: y + 34 + Math.floor(i / 4) * (h + GAP / 2) }, label: i === 0 ? project || 'Other containers' : undefined }))
+      y += 34 + Math.ceil(list.length / 4) * (h + GAP / 2) + GAP / 2
+    }
+    return out
+  }, [externals, services, base, w, h])
+  const points = useCallback((): XY[] => [...services.map((s) => pos(s.id)), ...ghosts.map((g) => g.at)], [services, pos, ghosts])
 
   // Drop local overrides once the server returns the saved position.
   useEffect(() => {
@@ -88,14 +105,14 @@ export function Canvas({ services, selected, onOpen, onBackground, onMove, onLin
 
   const fit = useCallback(() => {
     const box = el.current?.getBoundingClientRect()
-    if (!box || !services.length) return
-    const ps = services.map((s) => pos(s.id))
+    const ps = points()
+    if (!box || !ps.length) return
     const minX = Math.min(...ps.map((p) => p.x)), maxX = Math.max(...ps.map((p) => p.x)) + w
     const minY = Math.min(...ps.map((p) => p.y)), maxY = Math.max(...ps.map((p) => p.y)) + h
     const pad = box.width < 720 ? 24 : 96
     const z = Math.min(1, Math.max(MIN_ZOOM, Math.min((box.width - pad * 2) / (maxX - minX), (box.height - pad * 2 - 64) / (maxY - minY))))
     setView({ z, x: (box.width - (maxX - minX) * z) / 2 - minX * z, y: (box.height - (maxY - minY) * z) / 2 - minY * z - 24 })
-  }, [services, pos, w, h])
+  }, [points, w, h])
 
   // Frame all services on first load, and whenever a resize or a saved view leaves none on screen.
   const fitRef = useRef(fit)
@@ -106,19 +123,28 @@ export function Canvas({ services, selected, onOpen, onBackground, onMove, onLin
     const box = el.current?.getBoundingClientRect()
     if (!box) return false
     const v = viewRef.current
-    return !services.some((s) => {
-      const p = pos(s.id)
+    return !points().some((p) => {
       const x = p.x * v.z + v.x, y = p.y * v.z + v.y
       return x + w * v.z > 0 && x < box.width && y + h * v.z > 0 && y < box.height
     })
-  }, [services, pos, w, h])
+  }, [points, w, h])
   const checked = useRef(false)
   useLayoutEffect(() => {
-    if (!checked.current && services.length) {
+    if (!checked.current && (services.length || ghosts.length)) {
       checked.current = true
       if (noneVisible()) fit()
     }
-  }, [services.length, noneVisible, fit])
+  }, [services.length, ghosts.length, noneVisible, fit])
+  // The list of existing containers loads after the services: re-frame once if those cards land off-screen.
+  const ghostsFramed = useRef(false)
+  useEffect(() => {
+    if (ghostsFramed.current || !ghosts.length) return
+    ghostsFramed.current = true
+    const box = el.current?.getBoundingClientRect()
+    const v = viewRef.current
+    const offscreen = box && ghosts.some((g) => g.at.y * v.z + v.y + h * v.z > box.height || g.at.x * v.z + v.x + w * v.z > box.width)
+    if (offscreen) fitRef.current()
+  }, [ghosts, w, h])
   useEffect(() => {
     const onResize = () => noneVisible() && fitRef.current()
     window.addEventListener('resize', onResize)
@@ -175,7 +201,7 @@ export function Canvas({ services, selected, onOpen, onBackground, onMove, onLin
   }
 
   function startPan(e: React.PointerEvent) {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-node]')) return
+    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-node], [data-ghost]')) return
     const start = view
     setPanning(true)
     track(
@@ -313,8 +339,38 @@ export function Canvas({ services, selected, onOpen, onBackground, onMove, onLin
               </div>
             )
           })}
+          {ghosts.map(({ c, at, label }) => (
+            <div key={c.name}>
+              {label && (
+                <div className="ghost-label" style={{ left: at.x, top: at.y - 30 }}>
+                  {label === 'Other containers' ? label : 'Compose · ' + label} <span className="faint">· already on this server</span>
+                </div>
+              )}
+              <button
+                data-ghost={c.name}
+                className="card node ghost"
+                style={{ left: at.x, top: at.y }}
+                onClick={() => onAdoptPick(c)}
+                aria-label={`${c.name}, not managed yet. Adopt`}
+              >
+                <div className="row">
+                  <span className="kind">
+                    <Icon name="box" />
+                  </span>
+                  <h3 className="ellipsis" style={{ flex: 1, textAlign: 'left' }}>
+                    {c.name}
+                  </h3>
+                  <span className={`dot ${c.state === 'running' ? 'running' : 'failed'}`} title={c.status} />
+                </div>
+                <div className="meta" style={{ textAlign: 'left' }}>
+                  <div className="muted ellipsis">{c.image}</div>
+                  {prefs.density === 'comfortable' && <div className="faint ellipsis">Not managed · click to adopt</div>}
+                </div>
+              </button>
+            </div>
+          ))}
         </div>
-        {services.length === 0 && (
+        {services.length === 0 && ghosts.length === 0 && (
           <div className="empty-canvas">
             <div className="stack" style={{ justifyItems: 'center', gap: 12 }}>
               <button className="card" onClick={onNew}>

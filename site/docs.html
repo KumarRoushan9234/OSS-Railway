@@ -43,7 +43,7 @@
 </header>
 
 <div class="docs">
-  <aside class="toc" aria-label="On this page"><a href="#requirements">Requirements</a><a href="#install-doc">Install</a><a href="#first-deploy">First deploy</a><a href="#domains">Domains and HTTPS</a><a href="#databases">Databases</a><a href="#alerts">Alerts and reports</a><a href="#server-view">Server view and limits</a><a href="#two-factor">Two-factor sign-in</a><a href="#agents">AI agents (MCP)</a><a href="#logs-ai">Logs and AI analysis</a><a href="#remote">Remote access</a><a href="#desktop">Desktop app</a><a href="#updates">Updates and releases</a><a href="#local">Run it locally</a><a href="#uninstall">Uninstall</a><a href="#limits">Known limits</a><a href="#security">Security</a></aside>
+  <aside class="toc" aria-label="On this page"><a href="#requirements">Requirements</a><a href="#install-doc">Install</a><a href="#first-deploy">First deploy</a><a href="#domains">Domains and HTTPS</a><a href="#databases">Databases</a><a href="#alerts">Alerts and reports</a><a href="#server-view">Server view and limits</a><a href="#adopt">Adopt what's already running</a><a href="#two-factor">Two-factor sign-in</a><a href="#agents">AI agents (MCP)</a><a href="#logs-ai">Logs and AI analysis</a><a href="#remote">Remote access</a><a href="#desktop">Desktop app</a><a href="#updates">Updates and releases</a><a href="#local">Run it locally</a><a href="#uninstall">Uninstall</a><a href="#limits">Known limits</a><a href="#security">Security</a></aside>
   <main class="doc">
 <article id="requirements">
           <h2>Requirements</h2>
@@ -68,7 +68,7 @@
           <h2>First deploy</h2>
           <ol>
             <li>Press <b>New</b> (or <code>N</code>). Type to search: a repo name, an image like <code>nginx:alpine</code>, or a database.</li>
-            <li>For GitHub, choose <b>Connect GitHub</b>. This creates a private GitHub App on your account that only sees the repos you pick.</li>
+            <li>For GitHub, choose <b>Connect GitHub</b>. This creates a private GitHub App on your account that only sees the repos you pick. Sign in to GitHub as the account that will own the app; to install it on another account or organization, choose <b>Connect GitHub for other accounts</b> instead. If you picked the wrong one, choose <b>Disconnect GitHub</b> in the same menu and connect again.</li>
             <li>Add variables if your app needs them, then <b>Save and deploy</b>. Build logs stream live.</li>
             <li>When it's live, the card turns green and shows its address.</li>
           </ol>
@@ -100,6 +100,17 @@ A    *.example.com     →  YOUR_SERVER_IP   (optional, for name.example.com on 
           <h2>Server view and limits</h2>
           <p>Open <b>Server</b> in the top bar to see every listening port (with its process and container), every container on the machine (deployed here, or <i>external</i>), volumes and disk use.</p>
           <p>In a service's <b>Settings → Resources</b>, set a CPU limit (cores) and a memory limit (MB). Changes apply to the running container straight away. After a few minutes of data you get a suggestion: 1.5× the measured peak, with a warning when a service keeps hitting its limit. Docker can't cap disk per container, so disk use is shown and alerted on instead.</p>
+        </article>
+<article id="adopt">
+          <h2>Adopt what's already running</h2>
+          <p>Most servers already run something. Every container OSS Railway didn't create shows on the canvas as a dashed card, grouped by Docker Compose project. Click one and choose <b>Adopt</b>, or <b>Adopt all</b> for the whole project.</p>
+          <ul>
+            <li>Nothing about the container changes: it keeps its image, variables, ports and volumes.</li>
+            <li>You get it on the canvas with live and searchable logs, metrics, crash and out-of-memory alerts, <b>Restart</b>, <b>Stop</b>, <b>Start</b>, and CPU and memory limits applied live.</li>
+            <li>OSS Railway never rebuilds, recreates or re-routes it. Update it the way you created it, for example <code>docker compose up -d</code>.</li>
+            <li><b>Stop managing</b> (in its Settings) hands it back; the container keeps running.</li>
+          </ul>
+          <p>Programs that don't run in Docker (systemd services, a process started by hand) are listed in the Server view with their port, but can't be adopted.</p>
         </article>
 <article id="two-factor">
           <h2>Two-factor sign-in</h2>

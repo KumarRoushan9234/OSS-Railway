@@ -3,7 +3,7 @@ export type Status = 'running' | 'stopped' | 'queued' | 'building' | 'deploying'
 export interface Service {
   id: number
   name: string
-  source: 'github' | 'git' | 'image' | 'postgres' | 'mysql' | 'redis' | 'mongo'
+  source: 'github' | 'git' | 'image' | 'postgres' | 'mysql' | 'redis' | 'mongo' | 'external'
   repo: string
   branch: string
   image: string
@@ -22,6 +22,17 @@ export interface Service {
   commit: string
   since: number
   uses: string[]
+}
+
+// A container that was on the server before OSS Railway, or was started outside it.
+export interface External {
+  name: string
+  image: string
+  state: string
+  status: string
+  ports: string
+  project: string
+  service_id: number
 }
 
 export interface Deployment {
@@ -111,6 +122,7 @@ export const sourceLabel: Record<Service['source'], string> = {
   mysql: 'MySQL',
   redis: 'Redis',
   mongo: 'MongoDB',
+  external: 'Adopted',
 }
 
 // The variable an app gets when it is linked to a database.

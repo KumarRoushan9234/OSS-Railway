@@ -30,8 +30,9 @@ function slug(s: string) {
 }
 
 // Submits GitHub's App Manifest form: the user clicks "Create" on github.com, keys come back to the panel.
-async function connectGitHub() {
-  const { action, manifest } = await api<{ action: string; manifest: string }>('/github/manifest')
+// A private app can only be installed by the account that creates it; a public one by any account or organization.
+async function connectGitHub(anyAccount: boolean) {
+  const { action, manifest } = await api<{ action: string; manifest: string }>('/github/manifest' + (anyAccount ? '?public=1' : ''))
   const form = document.createElement('form')
   form.method = 'POST'
   form.action = action
@@ -89,9 +90,11 @@ export function NewService({ onClose, onCreated }: { onClose: () => void; onCrea
   else if (q && !q.includes(' ') && (q.includes(':') || q.includes('/')) && imageLike.test(q))
     commands.push({ id: 'paste-image', label: `Deploy ${q}`, icon: 'box', hint: 'Docker image', run: () => create({ name: slug(q.split('/').pop()!), source: 'image', image: q }) })
 
-  if (gh && !gh.connected) commands.push({ id: 'gh', label: 'Connect GitHub', icon: 'github', group: 'Deploy', run: () => connectGitHub().catch((e) => setError(e.message)) })
-  else if (gh && !gh.installations?.length)
-    commands.push({ id: 'gh', label: 'Choose GitHub repositories', icon: 'github', group: 'Deploy', run: () => (location.href = `https://github.com/apps/${gh.app_slug}/installations/new`) })
+  if (gh && !gh.connected) {
+    commands.push({ id: 'gh', label: 'Connect GitHub', icon: 'github', group: 'Deploy', hint: 'your account', run: () => connectGitHub(false).catch((e) => setError(e.message)) })
+    commands.push({ id: 'gh-any', label: 'Connect GitHub for other accounts', icon: 'github', group: 'Deploy', hint: 'any account or org', run: () => connectGitHub(true).catch((e) => setError(e.message)) })
+  } else if (gh && !gh.installations?.length)
+    commands.push({ id: 'gh', label: 'Choose GitHub repositories', icon: 'github', group: 'Deploy', hint: 'as the app owner', run: () => (location.href = `https://github.com/apps/${gh.app_slug}/installations/new`) })
   for (const c of [
     { id: 'git', label: 'Public Git URL', icon: 'git' },
     { id: 'image', label: 'Docker image', icon: 'box' },
@@ -109,6 +112,25 @@ export function NewService({ onClose, onCreated }: { onClose: () => void; onCrea
     })
   if (gh?.installations?.length)
     commands.push({ id: 'gh-add', label: 'Add more repositories on GitHub', icon: 'external', group: 'GitHub repositories', run: () => window.open(`https://github.com/apps/${gh.app_slug}/installations/new`, '_blank', 'noopener') })
+
+  if (gh?.connected && matches('Disconnect GitHub', q))
+    commands.push({
+      id: 'gh-off',
+      label: 'Disconnect GitHub',
+      icon: 'github',
+      group: 'GitHub repositories',
+      hint: 'then connect again',
+      run: async () => {
+        if (!confirm("Disconnect GitHub? Running services keep running, but GitHub services can't be redeployed until you connect again.")) return
+        try {
+          await api('/github', { method: 'DELETE' })
+          setRepos(null)
+          setGh(await api<GitHub>('/github'))
+        } catch (e) {
+          setError((e as Error).message)
+        }
+      },
+    })
 
   const isDb = step === 'postgres' || step === 'mysql' || step === 'redis' || step === 'mongo'
   const fallback = isDb ? step : slug(step === 'image' ? value.split('/').pop() || '' : value)
